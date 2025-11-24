@@ -2,10 +2,17 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Новости</title>
+    <title>Новости c jQuery</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .news-item { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ccc; }
+        .news-title { font-weight: bold; }
+        #time, #totalTime { margin-top: 10px; font-style: italic; }
+    </style>
+    <script src="jquery-3.7.1.min.js"></script>
 </head>
 <body>
-    <h1>Новости</h1>
+    <h1>Новости (JSON, c jQuery)</h1>
     <div id="news"></div>
     <div id="time"></div>
     <div id="totalTime"></div>
@@ -13,52 +20,55 @@
     <script>
         var pageStart = performance.now();
 
-        window.addEventListener("load", function () {
+        $(window).on("load", function () {
             var dataStart = performance.now();
-            loadJSON(function onRendered() {
+
+            $.get("rss_200.json")
+                .done(function (data) {
+                    if (typeof data === "string") {
+                        try {
+                            data = JSON.parse(data);
+                        } catch (e) {
+                            $("#news").text("Ошибка разбора JSON");
+                            finish();
+                            return;
+                        }
+                    }
+
+                    renderJSON(data);
+                    finish();
+                })
+                .fail(function (jqXHR) {
+                    $("#news").text("Ошибка загрузки JSON: " + jqXHR.status);
+                    finish();
+                });
+
+            function finish() {
                 var end = performance.now();
                 var total = (end - pageStart).toFixed(2);
                 var dataOnly = (end - dataStart).toFixed(2);
 
-                document.getElementById("totalTime").textContent =
-                    "Общее время от загрузки страницы до конца вывода: " + total + " мс";
-
-                document.getElementById("time").textContent =
-                    "Время обработки и вывода данных: " + dataOnly + " мс";
-            });
+                $("#totalTime").text(
+                    "Общее время от загрузки страницы до конца вывода: " + total + " мс"
+                );
+                $("#time").text(
+                    "Время обработки и вывода данных: " + dataOnly + " мс"
+                );
+            }
         });
 
-        function loadJSON(done) {
-            var xhr = new XMLHttpRequest();
-            xhr.open("GET", "rss_200.json", true);
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === 4) {
-                    if (xhr.status === 200) {
-                        var data = JSON.parse(xhr.responseText);
-                        renderJSON(data);
-                        if (typeof done === "function") done();
-                    } else {
-                        document.getElementById("news").textContent =
-                            "Ошибка загрузки JSON: " + xhr.status;
-                        if (typeof done === "function") done();
-                    }
-                }
-            };
-            xhr.send(null);
-        }
-
         function renderJSON(data) {
-            var container = document.getElementById("news");
-            container.innerHTML = "";
+            var $container = $("#news");
+            $container.empty();
 
             var channel = data.rss && data.rss.channel ? data.rss.channel : null;
             if (!channel || !channel.item) {
-                container.textContent = "Некорректный формат JSON";
+                $container.text("Некорректный формат JSON");
                 return;
             }
 
             var items;
-            if (Array.isArray(channel.item)) {
+            if ($.isArray(channel.item)) {
                 items = channel.item;
             } else {
                 items = [channel.item];
@@ -73,20 +83,12 @@
                 if (typeof title === "title" && title.text) title = title.text;
                 if (typeof desc  === "description" && desc.text)  desc  = desc.text;
 
-                var div = document.createElement("div");
-                div.className = "news-item";
+                var $div = $("<div>").addClass("news-item");
+                var $h3  = $("<div>").addClass("news-title").text(title);
+                var $p   = $("<div>").addClass("news-text").text(desc);
 
-                var h3 = document.createElement("div");
-                h3.className = "news-title";
-                h3.textContent = title;
-
-                var p = document.createElement("div");
-                p.className = "news-text";
-                p.textContent = desc;
-
-                div.appendChild(h3);
-                div.appendChild(p);
-                container.appendChild(div);
+                $div.append($h3).append($p);
+                $container.append($div);
             }
         }
     </script>
