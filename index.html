@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Новости</title>
+</head>
+<body>
+    <h1>Новости</h1>
+    <div id="news"></div>
+    <div id="time"></div>
+    <div id="totalTime"></div>
+
+    <script>
+        var pageStart = performance.now();
+
+        window.addEventListener("load", function () {
+            var dataStart = performance.now();
+            loadJSON(function onRendered() {
+                var end = performance.now();
+                var total = (end - pageStart).toFixed(2);
+                var dataOnly = (end - dataStart).toFixed(2);
+
+                document.getElementById("totalTime").textContent =
+                    "Общее время от загрузки страницы до конца вывода: " + total + " мс";
+
+                document.getElementById("time").textContent =
+                    "Время обработки и вывода данных: " + dataOnly + " мс";
+            });
+        });
+
+        function loadJSON(done) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "rss_200.json", true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        var data = JSON.parse(xhr.responseText);
+                        renderJSON(data);
+                        if (typeof done === "function") done();
+                    } else {
+                        document.getElementById("news").textContent =
+                            "Ошибка загрузки JSON: " + xhr.status;
+                        if (typeof done === "function") done();
+                    }
+                }
+            };
+            xhr.send(null);
+        }
+
+        function renderJSON(data) {
+            var container = document.getElementById("news");
+            container.innerHTML = "";
+
+            var channel = data.rss && data.rss.channel ? data.rss.channel : null;
+            if (!channel || !channel.item) {
+                container.textContent = "Некорректный формат JSON";
+                return;
+            }
+
+            var items;
+            if (Array.isArray(channel.item)) {
+                items = channel.item;
+            } else {
+                items = [channel.item];
+            }
+
+            for (var i = 0; i < items.length; i++) {
+                var item = items[i];
+
+                var title = item.title || "";
+                var desc  = item.description || "";
+
+                if (typeof title === "title" && title.text) title = title.text;
+                if (typeof desc  === "description" && desc.text)  desc  = desc.text;
+
+                var div = document.createElement("div");
+                div.className = "news-item";
+
+                var h3 = document.createElement("div");
+                h3.className = "news-title";
+                h3.textContent = title;
+
+                var p = document.createElement("div");
+                p.className = "news-text";
+                p.textContent = desc;
+
+                div.appendChild(h3);
+                div.appendChild(p);
+                container.appendChild(div);
+            }
+        }
+    </script>
+</body>
+</html>
